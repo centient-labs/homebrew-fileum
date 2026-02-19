@@ -1,13 +1,13 @@
 class Fileum < Formula
   desc "Entity-centric file organization CLI"
   homepage "https://github.com/centient-labs/fileum"
-  version "0.1.0"
+  version "0.1.1"
 
   depends_on :macos
   depends_on arch: :arm64
 
   url "https://github.com/centient-labs/homebrew-fileum/releases/download/v#{version}/fileum-macos-arm64.tar.gz"
-  sha256 "PLACEHOLDER_UPDATE_AT_RELEASE_TIME"
+  sha256 "5b7560ddca34c80a841cc997b8622b1f95fe17e050aa970074d1728cb45c6dd6"
 
   def install
     bin.install "fileum"
