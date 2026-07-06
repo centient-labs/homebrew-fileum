@@ -1,4 +1,4 @@
-<!-- cl-sync src=c9501366 -->
+<!-- cl-sync src=f04d61bc -->
 # Session Kickoff Procedure
 
 What a fresh session does first, before any task-specific work. Pairs with
@@ -40,13 +40,23 @@ In order:
          find docs/handoffs -maxdepth 1 -type f -name '*HANDOFF*.md'
        fi
        if git show-ref -q --verify refs/remotes/origin/main; then
+         # `grep` exits 1 on no match — a legitimate "no remote handoffs
+         # yet", not an error. `|| true` keeps that case from aborting
+         # callers running under `set -e` with pipefail; real git failures
+         # still print on stderr above.
          git ls-tree --name-only origin/main -- docs/handoffs/ \
-           | grep 'HANDOFF.*\.md$'
+           | grep 'HANDOFF.*\.md$' || true
        fi
      } \
      | sort -u \
      | awk -F/ '{key=$NF; sub(/^HANDOFF-/, "", key); print key "\t" $0}' \
      | sort | tail -1 | cut -f2-)
+   if [ -z "$latest" ] && [ -f HANDOFF.md ]; then
+     # workspace-meta fallback (handoff-creation.md, "Where it goes"):
+     # repos without docs/handoffs may carry a top-level HANDOFF.md
+     # current-snapshot file.
+     latest=HANDOFF.md
+   fi
    if [ -n "$latest" ]; then
      if [ -f "$latest" ]; then cat "$latest"
      else
@@ -58,6 +68,10 @@ In order:
        git show "origin/main:$latest" \
          || echo "handoff lookup: '$latest' selected but could not be read from origin/main (see the git error above for whether the path is missing or the read failed) — refetch or inspect manually" >&2
      fi
+     # the cross-check the prose above requires: the baton's handoff issue
+     # must still be OPEN — an empty list means it was already resumed.
+     gh issue list --label handoff --state open \
+       || echo "kickoff: could not list open handoff issues (offline/auth?) — check the baton's issue state manually before adopting it" >&2
    fi
    # empty $latest = no handoff yet (safe under set -e)
    ```
@@ -71,7 +85,10 @@ In order:
    the working tree and the remote tree. Test the **value of `$latest`**,
    not the pipeline's `$?`: `find ... | sort | tail` exits 0 whether or
    not anything matched, so `$?` cannot distinguish "no handoff" from
-   "I/O error" — only the value of `$latest` can.
+   "I/O error" — only the value of `$latest` can. The top-level
+   `HANDOFF.md` fallback applies only when no `docs/handoffs` baton was
+   found — the workspace-meta current-snapshot convention documented in
+   `handoff-creation.md` ("Where it goes").
 3. **Initialize the MCP session.** Call `mcp__centient__start_session_coordination`
    with `sessionId="YYYY-MM-DD-<keyword>"` and the absolute `projectPath`.
    See `procedures/session-management.md` for parameters.
@@ -118,7 +135,7 @@ In order:
   `docs/handoffs/` and `git log` for prior lessons on this surface. Note in your
   first response that the knowledge layer is offline so the operator knows the
   engram recall didn't run and the grounding is degraded.
-- **No `docs/handoffs/`**: skip step 2 silently.
+- **No `docs/handoffs/` and no top-level `HANDOFF.md`**: skip step 2 silently.
 - **No prior PRs by the agent**: step 5's `gh pr list` returns empty, which
   is fine.
 
